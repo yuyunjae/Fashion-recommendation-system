@@ -1,0 +1,39 @@
+Epoch [2/30] Train Loss: 1.8741, Train Acc: 40.70% | Val Loss: 1.9205, Val Acc: 38.22% | epoch_time=429.33s
+...
+Epoch [7/30] Train Loss: 0.4782, Train Acc: 80.12% | Val Loss: 2.7704, Val Acc: 42.64% | epoch_time=429.35s
+no improvement (5/5) | best_val_loss=1.9205
+Early stopping at epoch 7
+
+=== Final Evaluation (TEST) ===
+Best Epoch: 2
+Final Eval Loss: 4.8718
+Accuracy: 24.27%
+Macro    - Precision: 0.1346, Recall: 0.0312, F1: 0.0296
+Weighted - Precision: 0.5078, Recall: 0.2427, F1: 0.1896
+Output directory: D:\seoul project\machine learning\outputs_resnet50
+
+real    50m41.094s
+user    0m0.515s
+sys     0m0.765s
+
+
+
+
+Epoch [2/30] Train Loss: 1.8741, Train Acc: 40.70% | Val Loss: 1.9205, Val Acc: 38.22% | epoch_time=429.98s
+best model updated at epoch 2 (val_loss=1.9205)
+...
+Epoch [7/30] Train Loss: 0.4782, Train Acc: 80.12% | Val Loss: 2.7704, Val Acc: 42.64% | epoch_time=424.65s
+no improvement (5/5) | best_val_loss=1.9205
+Early stopping at epoch 7
+
+=== Final Evaluation (TEST) ===
+Best Epoch: 2
+Final Eval Loss: 3.0455
+Accuracy: 28.24%
+Macro    - Precision: 0.3099, Recall: 0.2806, F1: 0.2296
+Weighted - Precision: 0.3564, Recall: 0.2824, F1: 0.2456
+Output directory: D:\seoul project\machine learning\outputs_resnet50
+
+real    50m30.799s
+user    0m0.327s
+sys     0m0.843s

@@ -1,0 +1,11 @@
+time python src/resnet_model.py \
+  --train-dir "./패션 데이터셋/preprocess/train" \
+  --val-dir "./패션 데이터셋/preprocess/valid" \
+  --test-dir "./패션 데이터셋/preprocess/test" \
+  --image-size 224 \
+  --batch-size 32 \
+  --num-epochs 30 \
+  --patience 5 \
+  --lr 1e-4 \
+  --num-workers 4 \
+  --output-dir "./outputs_resnet50"
