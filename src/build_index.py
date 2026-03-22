@@ -353,6 +353,50 @@ def export_metadata_sqlite(sqlite_path: Path, records: Sequence[ItemRecord]) -> 
         conn.close()
 
 
+
+def compute_label_centroids(records, item_ids, vectors):
+    id_to_label = {r.item_id: r.label for r in records}
+    buckets = {}
+
+    for item_id, vec in zip(item_ids, vectors):
+        label = id_to_label[int(item_id)]
+        buckets.setdefault(label, []).append(vec)
+
+    centroids = {}
+    for label, vecs in buckets.items():
+        mat = np.stack(vecs, axis=0).astype("float32")
+        centroid = mat.mean(axis=0)
+        centroid /= (np.linalg.norm(centroid) + 1e-12)
+        centroids[label] = centroid
+    return centroids
+
+
+def save_label_centroids(centroids, out_path):
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    labels = sorted(centroids.keys())
+    matrix = np.stack([centroids[label] for label in labels], axis=0).astype("float32")
+
+    np.savez(
+        out_path,
+        labels=np.array(labels, dtype=object),
+        centroids=matrix,
+    )
+
+    meta_path = out_path.with_suffix(".json")
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "num_labels": len(labels),
+                "dim": int(matrix.shape[1]),
+                "labels": labels,
+            },
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
+
 def build_records_from_manifests(
     valid_manifest: Path,
     test_manifest: Path,
@@ -441,9 +485,14 @@ def main() -> None:
         num_workers=args.num_workers,
         device=device,
     )
+    index_out = Path(args.faiss_index_out)
+    centroid_out_path = index_out.with_name("label_centroids.npz")
+
+    # label별 평균 저장
+    label_centroids = compute_label_centroids(records, item_ids, vectors)
+    save_label_centroids(label_centroids, centroid_out_path)
 
     index = build_faiss_index(item_ids, vectors)
-    index_out = Path(args.faiss_index_out)
     save_faiss_index(index, index_out)
 
     if args.postgres_dsn:
