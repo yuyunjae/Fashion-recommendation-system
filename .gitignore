@@ -2,11 +2,14 @@
 *.jpg
 *.pt
 *.json
-!artifacts/label_centroids.json
-!index_to_label.json
-!label_to_index.json
-!run_summary.json
-!single_run_summary.json
+artifacts/*
+outputs_resnet50/*
+!sample_image/*
+# !artifacts/label_centroids.json
+# !index_to_label.json
+# !label_to_index.json
+# !run_summary.json
+# !single_run_summary.json
 패션 데이터셋/*
 __pycache__
 .env

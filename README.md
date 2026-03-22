@@ -42,7 +42,7 @@ docker exec -it fashion-postgres psql -U postgres -d fashion
 docker exec -i fashion-postgres psql -U postgres -d fashion < src/schema_postgres.sql
 
 # build_index.py 실행 (valid, test데이터로 db구성)
-time python src/build_index.py \
+python src/build_index.py \
   --checkpoint "outputs_resnet50/best_model_state.pth" \
   --label-map "outputs_resnet50/label_to_index.json" \
   --valid-manifest "outputs_resnet50/val_manifest.csv" \
