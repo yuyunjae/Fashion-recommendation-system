@@ -4,3 +4,4 @@
 *.json
 패션 데이터셋/*
 __pycache__
+.env

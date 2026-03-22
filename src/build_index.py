@@ -477,6 +477,7 @@ def main() -> None:
         label_map_path=Path(args.label_map),
         device=device,
     )
+    print("model load complete!")
     item_ids, vectors = extract_embeddings(
         model=model,
         records=records,
