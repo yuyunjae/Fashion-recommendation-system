@@ -1,0 +1,17 @@
+# 기초 설정 (docker로 다운로드 및 run)
+docker pull postgres:18
+docker run --name fashion-postgres \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=fashion \
+  -p 5432:5432 \
+  -d postgres:18
+
+# 컨테이너 시작 (껐다 키거나 했을 떄)
+docker start fashion-postgres
+
+# 터미널로 연결
+docker exec -it fashion-postgres psql -U postgres -d fashion
+
+# src/schema_postgres 에 있는 스키마를 이용해 table, index생성
+docker exec -i fashion-postgres psql -U postgres -d fashion < src/schema_postgres.sql
