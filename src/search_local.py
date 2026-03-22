@@ -1,17 +1,17 @@
 import argparse
+import io
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import faiss
 import numpy as np
 import psycopg2
 import torch
 from PIL import Image
-from pydantic import BaseModel, Field
 
-from src.person_crop import load_detector, preprocess_query_image_with_yolo
-from src.resnet_model import ResNet50Classifier, create_transforms
+from person_crop import load_detector, preprocess_query_image_with_yolo
+from resnet_model import ResNet50Classifier, create_transforms
 
 GENDER_ALIASES = {
     "all": None,
@@ -24,56 +24,7 @@ GENDER_ALIASES = {
 }
 
 
-def normalize_gender_filter(value: str) -> Optional[str]:
-    key = value.strip().lower()
-    if key not in GENDER_ALIASES:
-        raise ValueError(f"Unsupported gender filter: {value}. Use one of all/man/woman/male/female.")
-    return GENDER_ALIASES[key]
-
-
-class SearchRequest(BaseModel):
-    top_k: int = Field(default=5, ge=1)
-    gender: str = Field(default="all")
-    preferred_styles: List[str] = Field(default_factory=list)
-    disliked_styles: List[str] = Field(default_factory=list)
-    fallback_fill: bool = True
-
-
-class SearchResultItem(BaseModel):
-    rank: int
-    score: float
-    item_id: int
-    split: str
-    source_root_name: str
-    preprocessed_path: str
-    original_path: str
-    filename: str
-    image_id: str
-    year_code: str
-    style: str
-    gender: str
-    label: str
-
-
-class SearchResponse(BaseModel):
-    top_k: int
-    requested_gender_filter: str
-    normalized_gender_filter: Optional[str]
-    preferred_styles: List[str]
-    disliked_styles: List[str]
-    matched_preferred_labels: List[str]
-    matched_disliked_labels: List[str]
-    preprocess: Dict[str, Any]
-    preference_bias: Dict[str, Any]
-    faiss_search_k: int
-    strict_filtered_count: int
-    fallback_candidate_count: int
-    fallback_used: bool
-    returned_count: int
-    results: List[SearchResultItem]
-
-
-class SearchEngine:
+class FashionSearchEngine:
     def __init__(
         self,
         checkpoint_path: Path,
@@ -140,6 +91,13 @@ class SearchEngine:
         labels = data["labels"].tolist()
         centroids = data["centroids"].astype("float32")
         return {str(label): centroids[i] for i, label in enumerate(labels)}
+
+    @staticmethod
+    def normalize_gender_filter(value: str) -> Optional[str]:
+        key = value.strip().lower()
+        if key not in GENDER_ALIASES:
+            raise ValueError(f"Unsupported gender filter: {value}. Use one of all/man/woman/male/female.")
+        return GENDER_ALIASES[key]
 
     @staticmethod
     def parse_csv_list(value: Optional[str]) -> List[str]:
@@ -281,7 +239,7 @@ class SearchEngine:
     ) -> Dict[str, Any]:
         preferred_styles = list(preferred_styles or [])
         disliked_styles = list(disliked_styles or [])
-        gender_filter = normalize_gender_filter(gender)
+        gender_filter = self.normalize_gender_filter(gender)
 
         query_vector, preprocess_info = self._encode_query_image(image)
 
@@ -342,9 +300,6 @@ class SearchEngine:
         }
 
 
-FashionSearchEngine = SearchEngine
-
-
 def _parse_args():
     parser = argparse.ArgumentParser(description="Fashion similarity search with YOLO preprocessing + Faiss + PostgreSQL")
     parser.add_argument("--checkpoint", type=str, required=True)
@@ -370,7 +325,7 @@ def _parse_args():
 
 def main():
     args = _parse_args()
-    engine = SearchEngine(
+    engine = FashionSearchEngine(
         checkpoint_path=Path(args.checkpoint),
         label_map_path=Path(args.label_map),
         faiss_index_path=Path(args.faiss_index),
@@ -385,7 +340,7 @@ def main():
     )
 
     image = Image.open(args.query_image).convert("RGB")
-    result = engine.search(
+    results = engine.search(
         image=image,
         top_k=args.top_k,
         gender=args.gender,
@@ -397,10 +352,10 @@ def main():
     if args.output_json:
         out_path = Path(args.output_json)
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+        out_path.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"[DONE] search results saved to {out_path.resolve()}")
     else:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        print(json.dumps(results, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

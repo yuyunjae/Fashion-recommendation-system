@@ -69,9 +69,11 @@ python src/search.py \
   --fallback-fill
 
   
+# Fastapi로 app.py실행
+uvicorn app:app --host 0.0.0.0 --port 8000
 
 
-# .env 파일 
+# .env 파일 (default로 이미 설정되어있음)
 CHECKPOINT_PATH=outputs_resnet50/best_model_state.pth
 LABEL_MAP_PATH=outputs_resnet50/label_to_index.json
 FAISS_INDEX_PATH=artifacts/fashion_index.faiss
