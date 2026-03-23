@@ -6,8 +6,10 @@ from PIL import Image
 import os
 from functools import lru_cache
 from typing import Optional
+import psycopg
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from starlette.concurrency import run_in_threadpool
@@ -87,6 +89,34 @@ def startup_event() -> None:
         disliked_weight=settings.disliked_weight,
         search_pool_factor=settings.default_search_pool_factor,
     )
+
+
+# 이미지 return
+@app.get("/search_image/{item_id}")
+def get_search_image(item_id: int):
+    settings = app.state.settings
+
+    with psycopg.connect(settings.postgres_dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT original_path
+                FROM fashion_items
+                WHERE item_id = %s
+                """,
+                (item_id,),
+            )
+            row = cur.fetchone()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="item_id not found")
+
+    original_path = row[0]
+
+    if not original_path or not Path(original_path).exists():
+        raise HTTPException(status_code=404, detail="image file not found")
+
+    return FileResponse(original_path)
 
 
 # 서버 status, 관련 경로 체크 (서비스 떄는 status빼고는 없애야 할 듯)
