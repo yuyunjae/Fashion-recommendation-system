@@ -198,11 +198,12 @@ class SearchEngine:
         styles = [s.strip() for s in styles if s and s.strip()]
         if not styles:
             return []
+
         sql = """
             SELECT DISTINCT label
             FROM fashion_items
             WHERE style = ANY(%s)
-              AND (%s IS NULL OR gender = %s)
+              AND (%s IS NULL OR LOWER(gender) = LOWER(%s))
             ORDER BY label
         """
         with psycopg2.connect(self.postgres_dsn) as conn:
@@ -288,7 +289,7 @@ class SearchEngine:
         matched_preferred_labels = self._fetch_labels_for_styles(preferred_styles, gender_filter)
         matched_disliked_labels = self._fetch_labels_for_styles(disliked_styles, gender_filter)
 
-        
+
         print(matched_preferred_labels, matched_disliked_labels)
 
         preference_debug = {
