@@ -322,7 +322,12 @@ python src/search_local.py ...
 
 # 7. 서버 실행
 uvicorn app:app --host 0.0.0.0 --port 8000
+
+# 8. streamlit 실행
+python -m streamlit run src/frontend/app_api_ver.py --server.port 8501 --server.address 0.0.0.0
+
 ```
+
 
 ---
 

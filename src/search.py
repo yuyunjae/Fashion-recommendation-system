@@ -87,7 +87,7 @@ class SearchEngine:
         preferred_weight: float = 0.15,
         disliked_weight: float = 0.15,
         search_pool_factor: int = 5,
-        max_search_pool: int = 200,
+        max_search_pool: int = 20000,
         device: Optional[str] = None,
     ):
         self.device = self._resolve_device(device)
@@ -287,6 +287,9 @@ class SearchEngine:
 
         matched_preferred_labels = self._fetch_labels_for_styles(preferred_styles, gender_filter)
         matched_disliked_labels = self._fetch_labels_for_styles(disliked_styles, gender_filter)
+
+        
+        print(matched_preferred_labels, matched_disliked_labels)
 
         preference_debug = {
             "used_preferred_labels": [],

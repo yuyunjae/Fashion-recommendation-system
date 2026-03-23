@@ -151,7 +151,7 @@ class StreamlitApiRecommendationApp:
 
     def _render_sidebar(self) -> Dict[str, object]:
         st = self.st
-        default_api_base = self._resolve_default("API_BASE_URL", "")
+        default_api_base = self._resolve_default("API_BASE_URL", "http://yuyu-home.iptime.org:55437")
         default_search_path = self._resolve_default("SEARCH_PATH", "/search")
         default_image_path_template = self._resolve_default("IMAGE_PATH_TEMPLATE", "/search_image/{item_id}")
         default_image_id_query_key = self._resolve_default("IMAGE_ID_QUERY_KEY", "item_id")
