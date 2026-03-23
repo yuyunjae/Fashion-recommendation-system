@@ -37,3 +37,6 @@ Output directory: D:\seoul project\machine learning\outputs_resnet50
 real    50m30.799s
 user    0m0.327s
 sys     0m0.843s
+
+
+
