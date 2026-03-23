@@ -1,11 +1,18 @@
 from __future__ import annotations
-
 import io
 import os
+import warnings
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
 
 import pandas as pd
+
+# requests import 시 출력되는 dependency warning 숨김
+warnings.filterwarnings(
+    "ignore",
+    message="Unable to find acceptable character detection dependency.*",
+)
+
 import requests
 from PIL import Image
 
@@ -38,6 +45,50 @@ STYLE_OPTIONS_MULTI_SCRATCH: List[str] = [
     "space",
     "sportivecasual",
 ]
+
+COMBINED_LABELS_MULTI_SCRATCH: List[str] = [
+    "athleisure_female",
+    "bodyconscious_female",
+    "bold_male",
+    "cityglam_female",
+    "classic_female",
+    "disco_female",
+    "ecology_female",
+    "feminine_female",
+    "genderless_female",
+    "grunge_female",
+    "hiphop_female",
+    "hiphop_male",
+    "hippie_female",
+    "hippie_male",
+    "ivy_male",
+    "kitsch_female",
+    "lingerie_female",
+    "lounge_female",
+    "metrosexual_male",
+    "military_female",
+    "minimal_female",
+    "mods_male",
+    "normcore_female",
+    "normcore_male",
+    "oriental_female",
+    "popart_female",
+    "powersuit_female",
+    "punk_female",
+    "space_female",
+    "sportivecasual_female",
+    "sportivecasual_male",
+]
+MALE_STYLE_SET = {
+    label.rsplit("_", 1)[0]
+    for label in COMBINED_LABELS_MULTI_SCRATCH
+    if label.endswith("_male")
+}
+FEMALE_STYLE_SET = {
+    label.rsplit("_", 1)[0]
+    for label in COMBINED_LABELS_MULTI_SCRATCH
+    if label.endswith("_female")
+}
 
 
 def normalize_gender(value: str) -> str:
@@ -105,7 +156,7 @@ class StreamlitApiRecommendationApp:
         default_image_path_template = self._resolve_default("IMAGE_PATH_TEMPLATE", "/search_image/{item_id}")
         default_image_id_query_key = self._resolve_default("IMAGE_ID_QUERY_KEY", "item_id")
         default_timeout = self._resolve_default_int("REQUEST_TIMEOUT_SEC", 60)
-        default_verify_ssl = self._resolve_default_bool("VERIFY_SSL", True)
+        default_verify_ssl = self._resolve_default_bool("VERIFY_SSL", False)
 
         with st.sidebar:
             st.subheader("API Settings")
@@ -113,7 +164,7 @@ class StreamlitApiRecommendationApp:
             api_base = st.text_input(
                 "API Base URL",
                 value=default_api_base,
-                disabled=True,
+                disabled=False,
             )
             search_path = st.text_input(
                 "Search Path",
@@ -153,6 +204,18 @@ class StreamlitApiRecommendationApp:
             "verify_ssl": bool(verify_ssl),
             "preview_mode": bool(preview_mode),
         }
+
+    def _style_options_for_gender(
+        self,
+        gender_filter: str,
+        all_style_options: Sequence[str],
+    ) -> List[str]:
+        normalized = normalize_gender(gender_filter)
+        if normalized == "male":
+            return [s for s in all_style_options if s in MALE_STYLE_SET]
+        if normalized == "female":
+            return [s for s in all_style_options if s in FEMALE_STYLE_SET]
+        return list(all_style_options)
 
     def _resolve_default(self, key: str, fallback: str) -> str:
         st = self.st
@@ -303,51 +366,79 @@ class StreamlitApiRecommendationApp:
         uploaded = st.file_uploader("Upload user image", type=["jpg", "jpeg", "png"])
         col1, col2, col3 = st.columns(3)
         with col1:
-            gender_filter = st.selectbox("Gender", ["all", "male", "female"], index=0)
+            gender_filter = st.selectbox(
+                "Gender",
+                ["-- select gender --", "all", "male", "female"],
+                index=0,
+            )
         with col2:
             top_k = st.slider("Top-K", min_value=1, max_value=5, value=5, step=1)
         with col3:
             fallback_fill = st.checkbox("fallback_fill", value=True)
 
-        # 선호/비선호 스타일은 서로 중복 선택되지 않도록 session_state를 정리합니다.
         preferred_key = "preferred_styles"
         disliked_key = "disliked_styles"
+        gender_selected = gender_filter in {"all", "male", "female"}
 
-        preferred_existing = [
-            s for s in st.session_state.get(preferred_key, [])
-            if s in style_options
-        ]
-        disliked_existing = [
-            s for s in st.session_state.get(disliked_key, [])
-            if s in style_options
-        ]
+        if not gender_selected:
+            st.session_state[preferred_key] = []
+            st.session_state[disliked_key] = []
+            preferred_styles = st.multiselect(
+                "Preferred styles",
+                options=[],
+                key=preferred_key,
+                disabled=True,
+                placeholder="Select gender first",
+            )
+            disliked_styles = st.multiselect(
+                "Disliked styles",
+                options=[],
+                key=disliked_key,
+                disabled=True,
+                placeholder="Select gender first",
+            )
+        else:
+            style_options_for_gender = self._style_options_for_gender(gender_filter, style_options)
 
-        # 초기 충돌이 있으면 preferred를 우선 유지하고 disliked에서 제거합니다.
-        disliked_existing = [s for s in disliked_existing if s not in preferred_existing]
-        st.session_state[preferred_key] = preferred_existing
-        st.session_state[disliked_key] = disliked_existing
+            preferred_existing = [
+                s for s in st.session_state.get(preferred_key, [])
+                if s in style_options_for_gender
+            ]
+            disliked_existing = [
+                s for s in st.session_state.get(disliked_key, [])
+                if s in style_options_for_gender
+            ]
 
-        preferred_options = [s for s in style_options if s not in disliked_existing]
-        st.session_state[preferred_key] = [
-            s for s in st.session_state[preferred_key] if s in preferred_options
-        ]
-        preferred_styles = st.multiselect(
-            "Preferred styles",
-            options=preferred_options,
-            key=preferred_key,
-        )
+            # 초기 충돌이 있으면 preferred를 우선 유지하고 disliked에서 제거합니다.
+            disliked_existing = [s for s in disliked_existing if s not in preferred_existing]
+            st.session_state[preferred_key] = preferred_existing
+            st.session_state[disliked_key] = disliked_existing
 
-        disliked_options = [s for s in style_options if s not in preferred_styles]
-        st.session_state[disliked_key] = [
-            s for s in st.session_state[disliked_key] if s in disliked_options
-        ]
-        disliked_styles = st.multiselect(
-            "Disliked styles",
-            options=disliked_options,
-            key=disliked_key,
-        )
+            preferred_options = [s for s in style_options_for_gender if s not in disliked_existing]
+            st.session_state[preferred_key] = [
+                s for s in st.session_state[preferred_key] if s in preferred_options
+            ]
+            preferred_styles = st.multiselect(
+                "Preferred styles",
+                options=preferred_options,
+                key=preferred_key,
+            )
+
+            disliked_options = [s for s in style_options_for_gender if s not in preferred_styles]
+            st.session_state[disliked_key] = [
+                s for s in st.session_state[disliked_key] if s in disliked_options
+            ]
+            disliked_styles = st.multiselect(
+                "Disliked styles",
+                options=disliked_options,
+                key=disliked_key,
+            )
 
         if not st.button("Run search", type="primary"):
+            return
+
+        if not gender_selected:
+            st.warning("Please select gender first.")
             return
 
         if uploaded is None:
@@ -358,11 +449,12 @@ class StreamlitApiRecommendationApp:
         st.image(image, caption="Uploaded image", width=320)
 
         if settings["preview_mode"]:
+            style_options_for_gender = self._style_options_for_gender(gender_filter, style_options)
             self._render_preview_results(
                 top_k=int(top_k),
                 gender_filter=gender_filter,
                 preferred_styles=preferred_styles,
-                style_options=style_options,
+                style_options=style_options_for_gender,
             )
             return
 
@@ -404,7 +496,6 @@ class StreamlitApiRecommendationApp:
             style = row.get("style", "")
             gender = row.get("gender", "")
             item_id = self._extract_item_id(row)
-            split = row.get("split", "")
             source_root_name = row.get("source_root_name", "")
             label = row.get("label", "")
             original_path = row.get("original_path", "")
@@ -417,7 +508,6 @@ class StreamlitApiRecommendationApp:
                     "style": style,
                     "gender": gender,
                     "label": label,
-                    "split": split,
                     "source_root_name": source_root_name,
                     "original_path": original_path,
                     "_raw_item": row,
@@ -433,13 +523,12 @@ class StreamlitApiRecommendationApp:
                     "style": row["style"],
                     "gender": row["gender"],
                     "label": row["label"],
-                    "split": row["split"],
                 }
                 for row in normalized_rows
             ]
         )
         st.subheader("Top-K results")
-        st.dataframe(result_df, use_container_width=True)
+        st.dataframe(result_df, width="stretch")
 
         st.subheader("Recommendation gallery")
         gallery_cols = st.columns(3)
@@ -454,15 +543,15 @@ class StreamlitApiRecommendationApp:
                 if image_obj is not None:
                     if isinstance(image_obj, str):
                         if image_obj.startswith(("http://", "https://")):
-                            st.image(image_obj, use_container_width=True)
+                            st.image(image_obj, width="stretch")
                         else:
                             p = Path(image_obj)
                             if p.exists():
-                                st.image(str(p), use_container_width=True)
+                                st.image(str(p), width="stretch")
                             else:
                                 st.warning(f"이미지 경로를 찾지 못했습니다: {image_obj}")
                     else:
-                        st.image(image_obj, use_container_width=True)
+                        st.image(image_obj, width="stretch")
                 else:
                     st.warning(error_text)
 
@@ -503,7 +592,7 @@ class StreamlitApiRecommendationApp:
             )
 
         st.subheader("Top-K results (preview)")
-        st.dataframe(pd.DataFrame(mock_rows), use_container_width=True)
+        st.dataframe(pd.DataFrame(mock_rows), width="stretch")
 
 
 def is_running_in_streamlit() -> bool:
