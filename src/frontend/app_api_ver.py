@@ -91,6 +91,34 @@ FEMALE_STYLE_SET = {
 }
 
 
+def load_env_file(env_path: Path) -> None:
+    if not env_path.exists():
+        return
+    try:
+        lines = env_path.read_text(encoding="utf-8").splitlines()
+    except Exception:
+        return
+
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if not key:
+            continue
+        if (
+            len(value) >= 2
+            and ((value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")))
+        ):
+            value = value[1:-1]
+        os.environ.setdefault(key, value)
+
+
+load_env_file(Path(__file__).resolve().parent / ".env")
+
+
 def normalize_gender(value: str) -> str:
     v = str(value).strip().lower()
     if v in {"man", "men", "m", "male"}:
@@ -146,63 +174,26 @@ class StreamlitApiRecommendationApp:
         st.title("Fashion Recommendation (API Client)")
         st.caption("Calls backend /search endpoint and renders results")
 
-        settings = self._render_sidebar()
+        settings = self._load_runtime_settings()
         self._render_main_ui(settings, list(STYLE_OPTIONS_MULTI_SCRATCH))
 
-    def _render_sidebar(self) -> Dict[str, object]:
-        st = self.st
-        default_api_base = self._resolve_default("API_BASE_URL", "http://yuyu-home.iptime.org:55437")
+    def _load_runtime_settings(self) -> Dict[str, object]:
+        default_api_base = self._resolve_default("API_BASE_URL", "")
         default_search_path = self._resolve_default("SEARCH_PATH", "/search")
         default_image_path_template = self._resolve_default("IMAGE_PATH_TEMPLATE", "/search_image/{item_id}")
         default_image_id_query_key = self._resolve_default("IMAGE_ID_QUERY_KEY", "item_id")
         default_timeout = self._resolve_default_int("REQUEST_TIMEOUT_SEC", 60)
         default_verify_ssl = self._resolve_default_bool("VERIFY_SSL", False)
-
-        with st.sidebar:
-            st.subheader("API Settings")
-            st.caption("사이드바 설정은 read-only입니다.")
-            api_base = st.text_input(
-                "API Base URL",
-                value=default_api_base,
-                disabled=False,
-            )
-            search_path = st.text_input(
-                "Search Path",
-                value=default_search_path,
-                disabled=True,
-            )
-            image_path_template = st.text_input(
-                "Image GET path template",
-                value=default_image_path_template,
-                help="예: /image/{item_id} 또는 /result-image (query key 사용)",
-                disabled=True,
-            )
-            image_id_query_key = st.text_input(
-                "Image id query key",
-                value=default_image_id_query_key,
-                help="path template에 {item_id}가 없을 때만 사용됩니다.",
-                disabled=True,
-            )
-            timeout_sec = st.number_input(
-                "Request timeout (sec)",
-                min_value=5,
-                max_value=600,
-                value=max(5, min(600, int(default_timeout))),
-                step=5,
-                disabled=True,
-            )
-            verify_ssl = st.checkbox("Verify SSL", value=default_verify_ssl, disabled=True)
-            preview_mode = st.checkbox("Preview mode (no API call)", value=False, disabled=True)
-            st.divider()
+        default_preview_mode = self._resolve_default_bool("PREVIEW_MODE", False)
 
         return {
-            "api_base": str(api_base).strip(),
-            "search_path": str(search_path).strip(),
-            "image_path_template": str(image_path_template).strip(),
-            "image_id_query_key": str(image_id_query_key).strip(),
-            "timeout_sec": int(timeout_sec),
-            "verify_ssl": bool(verify_ssl),
-            "preview_mode": bool(preview_mode),
+            "api_base": str(default_api_base).strip(),
+            "search_path": str(default_search_path).strip(),
+            "image_path_template": str(default_image_path_template).strip(),
+            "image_id_query_key": str(default_image_id_query_key).strip(),
+            "timeout_sec": max(5, min(600, int(default_timeout))),
+            "verify_ssl": bool(default_verify_ssl),
+            "preview_mode": bool(default_preview_mode),
         }
 
     def _style_options_for_gender(
@@ -218,13 +209,6 @@ class StreamlitApiRecommendationApp:
         return list(all_style_options)
 
     def _resolve_default(self, key: str, fallback: str) -> str:
-        st = self.st
-        try:
-            value = st.secrets.get(key, None)  # type: ignore[attr-defined]
-            if value is not None and str(value).strip():
-                return str(value).strip()
-        except Exception:
-            pass
         env_val = os.getenv(key, "").strip()
         return env_val if env_val else fallback
 
@@ -243,6 +227,13 @@ class StreamlitApiRecommendationApp:
             return False
         return bool(fallback)
 
+    def _resolve_default_float(self, key: str, fallback: float) -> float:
+        raw = self._resolve_default(key, str(fallback))
+        try:
+            return float(raw)
+        except Exception:
+            return float(fallback)
+
     def _build_request(
         self,
         uploaded,
@@ -251,6 +242,9 @@ class StreamlitApiRecommendationApp:
         preferred_styles: Sequence[str],
         disliked_styles: Sequence[str],
         fallback_fill: bool,
+        beta_like: float,
+        gamma_dislike: float,
+        delta_survey_prior: float,
         settings: Dict[str, object],
     ) -> Tuple[str, Dict[str, Tuple[str, bytes, str]], Dict[str, str], Dict[str, str]]:
         url = join_url(str(settings["api_base"]), str(settings["search_path"]))
@@ -264,6 +258,9 @@ class StreamlitApiRecommendationApp:
             "preferred_styles": ",".join([s.strip().lower() for s in preferred_styles if str(s).strip()]),
             "disliked_styles": ",".join([s.strip().lower() for s in disliked_styles if str(s).strip()]),
             "fallback_fill": "true" if fallback_fill else "false",
+            "beta_like": str(float(beta_like)),
+            "gamma_dislike": str(float(gamma_dislike)),
+            "delta_survey_prior": str(float(delta_survey_prior)),
         }
 
         headers: Dict[str, str] = {}
@@ -362,6 +359,13 @@ class StreamlitApiRecommendationApp:
     def _render_main_ui(self, settings: Dict[str, object], style_options: List[str]) -> None:
         st = self.st
 
+        if not str(settings["api_base"]).strip():
+            st.warning("`.env`의 `API_BASE_URL` 값이 비어 있습니다.")
+        st.caption(
+            f"endpoint: {join_url(str(settings['api_base']), str(settings['search_path']))} | "
+            f"image path: {str(settings['image_path_template'])}"
+        )
+
         st.subheader("User Input")
         uploaded = st.file_uploader("Upload user image", type=["jpg", "jpeg", "png"])
         col1, col2, col3 = st.columns(3)
@@ -376,6 +380,7 @@ class StreamlitApiRecommendationApp:
         with col3:
             fallback_fill = st.checkbox("fallback_fill", value=True)
 
+        # 선호/비선호 스타일은 서로 중복 선택되지 않도록 session_state를 정리합니다.
         preferred_key = "preferred_styles"
         disliked_key = "disliked_styles"
         gender_selected = gender_filter in {"all", "male", "female"}
@@ -434,6 +439,19 @@ class StreamlitApiRecommendationApp:
                 key=disliked_key,
             )
 
+        st.subheader("Weight Controls")
+        beta_default = min(2.0, max(0.0, self._resolve_default_float("BETA_LIKE", 0.8)))
+        gamma_default = min(2.0, max(0.0, self._resolve_default_float("GAMMA_DISLIKE", 0.8)))
+        delta_default = min(2.0, max(0.0, self._resolve_default_float("DELTA_SURVEY_PRIOR", 1.0)))
+
+        beta_col, gamma_col, delta_col = st.columns(4)
+        with beta_col:
+            beta_like = st.slider("like_weight", 0.0, 2.0, float(beta_default), 0.05)
+        with gamma_col:
+            gamma_dislike = st.slider("weight_dislike", 0.0, 2.0, float(gamma_default), 0.05)
+        with delta_col:
+            delta_survey_prior = st.slider("survey_prior_weight", 0.0, 2.0, float(delta_default), 0.05)
+
         if not st.button("Run search", type="primary"):
             return
 
@@ -466,6 +484,9 @@ class StreamlitApiRecommendationApp:
                 preferred_styles=preferred_styles,
                 disliked_styles=disliked_styles,
                 fallback_fill=bool(fallback_fill),
+                beta_like=float(beta_like),
+                gamma_dislike=float(gamma_dislike),
+                delta_survey_prior=float(delta_survey_prior),
                 settings=settings,
             )
             with st.spinner("Calling backend /search ..."):
@@ -496,6 +517,7 @@ class StreamlitApiRecommendationApp:
             style = row.get("style", "")
             gender = row.get("gender", "")
             item_id = self._extract_item_id(row)
+            split = row.get("split", "")
             source_root_name = row.get("source_root_name", "")
             label = row.get("label", "")
             original_path = row.get("original_path", "")
@@ -508,6 +530,7 @@ class StreamlitApiRecommendationApp:
                     "style": style,
                     "gender": gender,
                     "label": label,
+                    "split": split,
                     "source_root_name": source_root_name,
                     "original_path": original_path,
                     "_raw_item": row,
@@ -523,12 +546,13 @@ class StreamlitApiRecommendationApp:
                     "style": row["style"],
                     "gender": row["gender"],
                     "label": row["label"],
+                    "split": row["split"],
                 }
                 for row in normalized_rows
             ]
         )
-        st.subheader("Top-K results")
-        st.dataframe(result_df, width="stretch")
+        # st.subheader("Top-K results")
+        # st.dataframe(result_df, width="stretch")
 
         st.subheader("Recommendation gallery")
         gallery_cols = st.columns(3)
