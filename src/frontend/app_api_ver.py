@@ -178,7 +178,7 @@ class StreamlitApiRecommendationApp:
         self._render_main_ui(settings, list(STYLE_OPTIONS_MULTI_SCRATCH))
 
     def _load_runtime_settings(self) -> Dict[str, object]:
-        default_api_base = self._resolve_default("API_BASE_URL", "")
+        default_api_base = self._resolve_default("API_BASE_URL", "http://yuyu-home.iptime.org:55437")
         default_search_path = self._resolve_default("SEARCH_PATH", "/search")
         default_image_path_template = self._resolve_default("IMAGE_PATH_TEMPLATE", "/search_image/{item_id}")
         default_image_id_query_key = self._resolve_default("IMAGE_ID_QUERY_KEY", "item_id")
@@ -361,10 +361,10 @@ class StreamlitApiRecommendationApp:
 
         if not str(settings["api_base"]).strip():
             st.warning("`.env`의 `API_BASE_URL` 값이 비어 있습니다.")
-        st.caption(
-            f"endpoint: {join_url(str(settings['api_base']), str(settings['search_path']))} | "
-            f"image path: {str(settings['image_path_template'])}"
-        )
+        # st.caption(
+        #     f"endpoint: {join_url(str(settings['api_base']), str(settings['search_path']))} | "
+        #     f"image path: {str(settings['image_path_template'])}"
+        # )
 
         st.subheader("User Input")
         uploaded = st.file_uploader("Upload user image", type=["jpg", "jpeg", "png"])
@@ -439,18 +439,20 @@ class StreamlitApiRecommendationApp:
                 key=disliked_key,
             )
 
-        st.subheader("Weight Controls")
-        beta_default = min(2.0, max(0.0, self._resolve_default_float("BETA_LIKE", 0.8)))
-        gamma_default = min(2.0, max(0.0, self._resolve_default_float("GAMMA_DISLIKE", 0.8)))
-        delta_default = min(2.0, max(0.0, self._resolve_default_float("DELTA_SURVEY_PRIOR", 1.0)))
+        # st.subheader("Weight Controls")
+        # beta_default = min(2.0, max(0.0, self._resolve_default_float("BETA_LIKE", 0.8)))
+        # gamma_default = min(2.0, max(0.0, self._resolve_default_float("GAMMA_DISLIKE", 0.8)))
+        # delta_default = min(2.0, max(0.0, self._resolve_default_float("DELTA_SURVEY_PRIOR", 1.0)))
 
-        beta_col, gamma_col, delta_col = st.columns(4)
-        with beta_col:
-            beta_like = st.slider("like_weight", 0.0, 2.0, float(beta_default), 0.05)
-        with gamma_col:
-            gamma_dislike = st.slider("weight_dislike", 0.0, 2.0, float(gamma_default), 0.05)
-        with delta_col:
-            delta_survey_prior = st.slider("survey_prior_weight", 0.0, 2.0, float(delta_default), 0.05)
+        # beta_col, gamma_col, delta_col = st.columns(3)
+        # with beta_col:
+        #     beta_like = st.slider("like_weight", 0.0, 2.0, float(beta_default), 0.05)
+        # with gamma_col:
+        #     gamma_dislike = st.slider("weight_dislike", 0.0, 2.0, float(gamma_default), 0.05)
+        # with delta_col:
+        #     delta_survey_prior = st.slider("survey_prior_weight", 0.0, 2.0, float(delta_default), 0.05)
+
+        beta_like, gamma_dislike, delta_survey_prior = 0.3, 0.3, 0.3
 
         if not st.button("Run search", type="primary"):
             return
