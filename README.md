@@ -231,7 +231,7 @@ python src/search_local.py \
 ## 8. FastAPI 서버 실행
 
 ```bash
-uvicorn app:app --host 0.0.0.0 --port 8000
+uvicorn src.app:app --host 0.0.0.0 --port 8000
 ```
 
 실행 후 Swagger 문서는 아래 주소에서 확인할 수 있습니다.
@@ -321,7 +321,7 @@ python src/build_index.py ...
 python src/search_local.py ...
 
 # 7. 서버 실행
-uvicorn app:app --host 0.0.0.0 --port 8000
+uvicorn src.app:app --host 0.0.0.0 --port 8000
 
 # 8. streamlit 실행
 python -m streamlit run src/frontend/app_api_ver.py --server.port 8501 --server.address 0.0.0.0
@@ -336,7 +336,6 @@ python -m streamlit run src/frontend/app_api_ver.py --server.port 8501 --server.
 - 선호/비선호 스타일 weighting 고도화
 - 스타일 centroid를 활용한 re-ranking 강화
 - 인증이 포함된 API 서버 배포
-- 프론트엔드 UI 연동
 - 대규모 벡터 검색을 위한 구조 확장
 
 ---
@@ -349,5 +348,7 @@ python -m streamlit run src/frontend/app_api_ver.py --server.port 8501 --server.
 - **Faiss**
 - **PostgreSQL**
 - **FastAPI**
-- **Docker** -->
+- **Docker**
+- **Streamlit**
+-->
 
