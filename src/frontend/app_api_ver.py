@@ -178,7 +178,7 @@ class StreamlitApiRecommendationApp:
         self._render_main_ui(settings, list(STYLE_OPTIONS_MULTI_SCRATCH))
 
     def _load_runtime_settings(self) -> Dict[str, object]:
-        default_api_base = self._resolve_default("API_BASE_URL", "http://yuyu-home.iptime.org:55437")
+        default_api_base = self._resolve_default("API_BASE_URL", "localhost:8000")
         default_search_path = self._resolve_default("SEARCH_PATH", "/search")
         default_image_path_template = self._resolve_default("IMAGE_PATH_TEMPLATE", "/search_image/{item_id}")
         default_image_id_query_key = self._resolve_default("IMAGE_ID_QUERY_KEY", "item_id")
